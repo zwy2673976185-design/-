@@ -1,12 +1,17 @@
 {
-  "name": "toolbox-api",
+  "name": "robot-manual-login-system",
   "version": "1.0.0",
+  "description": "松下机器人手册登录系统（白名单版）",
   "main": "server.js",
-  "dependencies": {
-    "express": "^4.18.2",
-    "cors": "^2.8.5"
-  },
   "scripts": {
     "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "bcryptjs": "^2.4.3"
+  },
+  "engines": {
+    "node": ">=14.0.0"
   }
 }
