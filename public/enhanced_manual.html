@@ -5,15 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>悬浮窗系统</title>
     <style>
-        /* 您的原始CSS样式完全保留，没有任何修改 */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Microsoft YaHei", sans-serif; }
         body { height: 100vh; overflow: hidden; position: relative; margin: 0; padding: 0; }
         
+        /* 动态内容容器：JS动态渲染页面 */
         #dynamicContent { 
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
             z-index: 1; overflow: auto; background: #fff; 
         }
 
+        /* 悬浮球：常驻顶层 */
         .float-btn { 
             position: fixed; z-index: 9999; width: 60px; height: 60px; border-radius: 0; box-shadow: 0 3px 15px rgba(0,0,0,0.3); 
             cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; transition: transform 0.2s ease; 
@@ -23,6 +24,7 @@
         }
         .float-btn:active { transform: scale(0.95); }
         
+        /* 悬浮窗：JS动态控制公告面板状态 */
         .float-window { 
             position: fixed; z-index: 9998; width: 300px; height: 280px; background: white; border-radius: 12px; 
             box-shadow: 0 5px 25px rgba(0,0,0,0.15); overflow: hidden; display: none; opacity: 0; transition: opacity 0.3s ease; 
@@ -54,10 +56,12 @@
         
         .content-panel { 
             padding: 15px; max-height: calc(280px - 44px); overflow-y: auto; display: none; 
+            /* 修复：禁止水平滚动，只允许垂直滚动 */
             overflow-x: hidden;
         }
         .content-panel.active { display: block; }
         
+        /* 注册登录系统样式 - 彻底修复遮挡问题 */
         .auth-container { 
             height: 100%;
             display: flex;
@@ -283,6 +287,7 @@
         .status-disconnected { background: #f87171; }
         .status-connecting { background: #fbbf24; }
         
+        /* 新增：确保所有内容不会水平滚动 */
         .auth-container * {
             max-width: 100%;
         }
@@ -292,24 +297,72 @@
             100% { transform: rotate(360deg); }
         }
         
-        /* 新增：状态指示器样式 */
-        .status-indicator {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 12px;
-            padding: 4px 8px;
-            border-radius: 12px;
-            background: #f8f9fa;
+        /* 登录容器样式 */
+        .login-container {
+            max-width: 400px;
+            margin: 50px auto;
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
         }
-        .status-dot-small {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
         }
-        .status-online { background: #4ade80; }
-        .status-offline { background: #f87171; }
-        .status-connecting { background: #fbbf24; }
+        .login-header h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .login-header p {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .login-form-group {
+            margin-bottom: 20px;
+        }
+        .login-form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        .login-form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        .login-form-group input:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+        
+        .login-form-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .login-footer {
+            text-align: center;
+            margin-top: 25px;
+            color: #666;
+        }
+        .login-toggle-form {
+            color: #667eea;
+            cursor: pointer;
+            font-weight: 500;
+        }
         
         /* 通知动画 */
         @keyframes fadeInOut {
@@ -447,6 +500,54 @@
             <!-- 设置面板内容将由JS动态生成 -->
         </div>
     </div>
+    
+    <!-- 登录界面 -->
+    <div id="loginContainer" class="login-container" style="display: none;">
+        <div class="login-header">
+            <h1>🤖 松下机器人手册</h1>
+            <p>多端互斥登录系统 - 一个账号只能在一个设备登录</p>
+        </div>
+        
+        <form id="loginFormMain">
+            <div class="login-form-group">
+                <label>用户名</label>
+                <input type="text" id="loginUsername" placeholder="请输入用户名" required>
+            </div>
+            <div class="login-form-group">
+                <label>密码</label>
+                <input type="password" id="loginPassword" placeholder="请输入密码" required>
+            </div>
+            <button type="submit" class="login-form-btn">登录</button>
+        </form>
+        
+        <form id="registerFormMain" style="display: none;">
+            <div class="login-form-group">
+                <label>用户名</label>
+                <input type="text" id="registerUsername" placeholder="设置用户名" required>
+            </div>
+            <div class="login-form-group">
+                <label>密码</label>
+                <input type="password" id="registerPassword" placeholder="设置密码" required>
+            </div>
+            <div class="login-form-group">
+                <label>邮箱（可选）</label>
+                <input type="email" id="registerEmail" placeholder="用于接收通知">
+            </div>
+            <button type="submit" class="login-form-btn" style="background: #4CAF50;">提交注册申请</button>
+        </form>
+        
+        <div class="login-footer">
+            <span id="toggleText">没有账号？</span>
+            <span class="login-toggle-form" id="toggleFormBtn">立即注册</span>
+        </div>
+    </div>
+
+    <!-- 手册内容容器 -->
+    <div id="manualContainer" style="display: none;">
+        <div id="manualContent" style="padding: 20px; max-width: 1000px; margin: 0 auto;">
+            <!-- 内容由JS动态加载 -->
+        </div>
+    </div>
 
     <!-- 全局通知 -->
     <div id="globalNotification" style="display: none;"></div>
@@ -458,8 +559,8 @@
 
             // ==================== 配置区域 ====================
             const CONFIG = {
-                // !!! 重要：改为您自己的Render后端地址 !!!
-                API_BASE_URL: 'https://您的Render地址.onrender.com',
+                // 使用您的Render地址
+                API_BASE_URL: 'https://bian-cheng-gong-ju-xiang.onrender.com',
                 STORAGE_KEYS: {
                     USERNAME: 'robot_username',
                     DEVICE_TOKEN: 'robot_device_token',
@@ -473,7 +574,7 @@
             };
             // ==================== 配置结束 ====================
 
-            // 简单工具函数
+            // 工具函数
             const utils = {
                 getStorage(key) { 
                     try {
@@ -533,6 +634,8 @@
             const modalBack = document.getElementById('modalBack');
             const funcButtons = document.getElementById('funcButtons');
             const panelSetting = document.getElementById('panelSetting');
+            const loginContainer = document.getElementById('loginContainer');
+            const manualContainer = document.getElementById('manualContainer');
 
             // 全局状态
             let currentWindowPos = { left: 20, top: 20 };
@@ -543,8 +646,37 @@
             let deviceToken = null;
             let heartbeatTimer = null;
             let checkTimer = null;
+            let isDragging = false;
+            let dragOffset = { x: 0, y: 0 };
 
-            // 1. 初始化设备ID
+            // 1. 页面加载
+            document.addEventListener('DOMContentLoaded', function() {
+                console.log('页面加载完成，开始初始化...');
+                
+                // 检查关键元素是否存在
+                const floatBtn = document.getElementById('floatBtn');
+                const floatWindow = document.getElementById('floatWindow');
+                
+                console.log('悬浮球元素:', floatBtn ? '找到' : '未找到');
+                console.log('悬浮窗元素:', floatWindow ? '找到' : '未找到');
+                
+                if (floatWindow) {
+                    // 确保悬浮窗初始状态正确
+                    floatWindow.style.display = 'none';
+                    floatWindow.classList.remove('active');
+                    console.log('悬浮窗初始状态已重置');
+                }
+                
+                // 继续其他初始化
+                initDeviceId();
+                initPage();
+                bindEvents();
+                startHeartbeat();
+                startSessionChecker();
+                initSettingPanel();
+            });
+
+            // 2. 初始化设备ID
             function initDeviceId() {
                 deviceId = localStorage.getItem(CONFIG.STORAGE_KEYS.DEVICE_ID);
                 if (!deviceId) {
@@ -553,21 +685,14 @@
                 }
             }
 
-            // 2. 页面加载
-            document.addEventListener('DOMContentLoaded', function() {
-                initDeviceId();
+            // 3. 初始化页面
+            function initPage() {
+                console.log('初始化页面...');
                 loadStoredData();
-                checkSessionStatus(); // 立即检查会话状态
-                
-                bindEvents();
-                startHeartbeat();
-                startSessionChecker();
-                
-                // 初始化设置面板
-                initSettingPanel();
-            });
+                checkSessionStatus();
+            }
 
-            // 3. 加载存储的数据
+            // 4. 加载存储的数据
             function loadStoredData() {
                 const username = localStorage.getItem(CONFIG.STORAGE_KEYS.USERNAME);
                 deviceToken = localStorage.getItem(CONFIG.STORAGE_KEYS.DEVICE_TOKEN);
@@ -575,142 +700,492 @@
                 
                 if (username && deviceToken && userInfo) {
                     currentUser = JSON.parse(userInfo);
-                    updateStatus('连接中...', 'status-connecting');
+                    showManualContent();
+                    updateConnectionStatus('connecting');
                 } else {
                     showLoginForm();
                 }
             }
 
-            // 4. 绑定事件
+            // 5. 绑定所有事件
             function bindEvents() {
-                // 登录表单
-                document.getElementById('loginForm').addEventListener('submit', async function(e) {
-                    e.preventDefault();
-                    await handleLogin();
-                });
+                console.log('绑定事件监听器...');
                 
-                // 注册表单
-                document.getElementById('registerForm').addEventListener('submit', async function(e) {
-                    e.preventDefault();
-                    await handleRegister();
-                });
-                
-                // 切换登录/注册
-                document.getElementById('toggleFormBtn').addEventListener('click', function() {
-                    const loginForm = document.getElementById('loginForm');
-                    const registerForm = document.getElementById('registerForm');
-                    const toggleText = document.getElementById('toggleText');
+                // === 1. 悬浮球相关 ===
+                const floatBtn = document.getElementById('floatBtn');
+                if (floatBtn) {
+                    floatBtn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        console.log('点击悬浮球');
+                        toggleFloatWindow();
+                    });
                     
-                    if (loginForm.style.display !== 'none') {
-                        loginForm.style.display = 'none';
-                        registerForm.style.display = 'block';
-                        toggleText.textContent = '已有账号？';
-                        this.textContent = '立即登录';
-                    } else {
-                        loginForm.style.display = 'block';
-                        registerForm.style.display = 'none';
-                        toggleText.textContent = '没有账号？';
-                        this.textContent = '立即注册';
-                    }
-                });
-                
-                // 退出登录
-                document.getElementById('logoutBtn').addEventListener('click', logout);
-                
-                // 悬浮窗拖拽
-                const floatHeader = document.getElementById('windowHeader');
-                if (floatHeader) {
-                    floatHeader.addEventListener('mousedown', startDrag);
-                    document.addEventListener('mousemove', drag);
-                    document.addEventListener('mouseup', stopDrag);
-                    
-                    floatHeader.addEventListener('touchstart', startDrag);
-                    document.addEventListener('touchmove', drag);
-                    document.addEventListener('touchend', stopDrag);
+                    // 悬浮球拖拽
+                    floatBtn.addEventListener('mousedown', startBtnDrag);
+                    floatBtn.addEventListener('touchstart', startBtnDragTouch);
                 }
                 
-                function startDrag(e) {
-                    isDragging = true;
-                    const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
-                    const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
-                    const rect = floatHeader.getBoundingClientRect();
-                    offset = { x: clientX - rect.left, y: clientY - rect.top };
+                // === 2. 悬浮窗头部拖拽 ===
+                const windowHeader = document.getElementById('windowHeader');
+                if (windowHeader) {
+                    windowHeader.addEventListener('mousedown', startWinDrag);
+                    windowHeader.addEventListener('touchstart', startWinDragTouch);
                 }
                 
-                function drag(e) {
-                    if (!isDragging) return;
-                    e.preventDefault();
-                    const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
-                    const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
-                    const floatWindow = document.getElementById('floatWindow');
-                    floatWindow.style.left = (clientX - offset.x) + 'px';
-                    floatWindow.style.top = (clientY - offset.y) + 'px';
+                // === 3. 功能按钮 ===
+                // 我的
+                const btnMy = document.getElementById('btnMy');
+                if (btnMy) {
+                    btnMy.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        console.log('点击"我的"按钮');
+                        switchPanel('panelMy');
+                    });
                 }
                 
-                function stopDrag() {
-                    isDragging = false;
+                // 公告更新
+                const btnNotice = document.getElementById('btnNotice');
+                if (btnNotice) {
+                    btnNotice.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        console.log('点击"公告更新"按钮');
+                        switchPanel('panelNotice');
+                    });
                 }
                 
-                // 面板切换
+                // 联系作者
+                const btnContact = document.getElementById('btnContact');
+                if (btnContact) {
+                    btnContact.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        console.log('点击"联系作者"按钮');
+                        switchPanel('panelContact');
+                    });
+                }
+                
+                // 设置
+                const btnSetting = document.getElementById('btnSetting');
+                if (btnSetting) {
+                    btnSetting.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        console.log('点击"设置"按钮');
+                        switchPanel('panelSetting');
+                    });
+                }
+                
+                // === 4. 返回按钮 ===
                 if (modalBack) {
-                    modalBack.addEventListener('click', () => {
+                    modalBack.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        console.log('点击返回按钮');
+                        
+                        // 隐藏所有面板
                         document.querySelectorAll('.content-panel').forEach(panel => {
                             panel.classList.remove('active');
                             panel.style.display = 'none';
                         });
-                        if (funcButtons) funcButtons.style.display = 'flex';
+                        
+                        // 显示功能按钮列表
+                        if (funcButtons) {
+                            funcButtons.style.display = 'flex';
+                        }
+                        
+                        // 隐藏返回按钮
                         modalBack.style.display = 'none';
                     });
                 }
-
-                const btnNotice = document.getElementById('btnNotice');
-                if (btnNotice) {
-                    btnNotice.addEventListener('click', () => {
-                        if (funcButtons) funcButtons.style.display = 'none';
-                        switchPanel('panelNotice');
+                
+                // === 5. 主登录表单 ===
+                const loginFormMain = document.getElementById('loginFormMain');
+                if (loginFormMain) {
+                    loginFormMain.addEventListener('submit', async function(e) {
+                        e.preventDefault();
+                        await handleLoginMain();
                     });
                 }
-
-                const btnMy = document.getElementById('btnMy');
-                if (btnMy) {
-                    btnMy.addEventListener('click', () => {
-                        if (funcButtons) funcButtons.style.display = 'none';
-                        switchPanel('panelMy');
+                
+                // === 6. 主注册表单 ===
+                const registerFormMain = document.getElementById('registerFormMain');
+                if (registerFormMain) {
+                    registerFormMain.addEventListener('submit', async function(e) {
+                        e.preventDefault();
+                        await handleRegisterMain();
                     });
                 }
-
-                const btnContact = document.getElementById('btnContact');
-                if (btnContact) {
-                    btnContact.addEventListener('click', () => {
-                        if (funcButtons) funcButtons.style.display = 'none';
-                        switchPanel('panelContact');
+                
+                // === 7. 切换登录/注册 ===
+                const toggleFormBtn = document.getElementById('toggleFormBtn');
+                if (toggleFormBtn) {
+                    toggleFormBtn.addEventListener('click', function() {
+                        const loginForm = document.getElementById('loginFormMain');
+                        const registerForm = document.getElementById('registerFormMain');
+                        const toggleText = document.getElementById('toggleText');
+                        
+                        if (loginForm.style.display !== 'none') {
+                            loginForm.style.display = 'none';
+                            registerForm.style.display = 'block';
+                            toggleText.textContent = '已有账号？';
+                            this.textContent = '立即登录';
+                        } else {
+                            loginForm.style.display = 'block';
+                            registerForm.style.display = 'none';
+                            toggleText.textContent = '没有账号？';
+                            this.textContent = '立即注册';
+                        }
                     });
                 }
-
-                const btnSetting = document.getElementById('btnSetting');
-                if (btnSetting) {
-                    btnSetting.addEventListener('click', () => {
-                        if (funcButtons) funcButtons.style.display = 'none';
-                        switchPanel('panelSetting');
+                
+                // === 8. 悬浮窗内登录按钮 ===
+                const loginBtn = document.getElementById('login-btn');
+                if (loginBtn) {
+                    loginBtn.addEventListener('click', async function() {
+                        await handleLogin();
                     });
                 }
+                
+                // === 9. 悬浮窗内注册按钮 ===
+                const registerBtn = document.getElementById('register-btn');
+                if (registerBtn) {
+                    registerBtn.addEventListener('click', async function() {
+                        await handleRegister();
+                    });
+                }
+                
+                // === 10. 悬浮窗内退出按钮 ===
+                const logoutBtn = document.getElementById('logout-btn');
+                if (logoutBtn) {
+                    logoutBtn.addEventListener('click', logout);
+                }
+                
+                // === 11. 悬浮窗内选项卡 ===
+                const authTabs = document.getElementById('auth-tabs');
+                if (authTabs) {
+                    authTabs.querySelectorAll('.auth-tab').forEach(tab => {
+                        tab.addEventListener('click', function() {
+                            if (currentUser) return;
+                            const tabName = this.getAttribute('data-tab');
+                            switchAuthTab(tabName);
+                        });
+                    });
+                }
+                
+                // === 12. 全局拖拽结束 ===
+                document.addEventListener('mouseup', stopDrag);
+                document.addEventListener('touchend', stopDrag);
+                document.addEventListener('mousemove', doDrag);
+                document.addEventListener('touchmove', doDragTouch);
+                
+                console.log('所有事件绑定完成');
             }
 
-            // 5. 面板切换
+            // 6. 切换面板函数
             function switchPanel(targetId) {
+                console.log('切换面板到:', targetId);
+                
+                // 隐藏所有面板
                 document.querySelectorAll('.content-panel').forEach(panel => {
                     panel.classList.remove('active');
                     panel.style.display = 'none';
                 });
+                
+                // 隐藏功能按钮列表
+                if (funcButtons) {
+                    funcButtons.style.display = 'none';
+                }
+                
+                // 显示返回按钮
+                if (modalBack) {
+                    modalBack.style.display = 'block';
+                }
+                
+                // 显示目标面板
                 const targetPanel = document.getElementById(targetId);
                 if (targetPanel) {
                     targetPanel.classList.add('active');
                     targetPanel.style.display = 'block';
+                    console.log('已显示面板:', targetId);
+                } else {
+                    console.error('找不到面板:', targetId);
                 }
-                if (modalBack) modalBack.style.display = 'block';
             }
 
-            // 6. 处理登录
+            // 7. 悬浮球拖拽
+            function startBtnDrag(e) {
+                btnIsDragging = true;
+                btnDragStart = { 
+                    x: e.clientX, 
+                    y: e.clientY, 
+                    rect: floatBtn.getBoundingClientRect() 
+                };
+                e.preventDefault();
+            }
+            
+            function startBtnDragTouch(e) {
+                if (e.touches.length === 1) {
+                    btnIsDragging = true;
+                    const touch = e.touches[0];
+                    btnDragStart = { 
+                        x: touch.clientX, 
+                        y: touch.clientY, 
+                        rect: floatBtn.getBoundingClientRect() 
+                    };
+                }
+            }
+            
+            function startWinDrag(e) {
+                if (!floatWindow.classList.contains('active')) return;
+                winIsDragging = true;
+                winDragStart = { 
+                    x: e.clientX, 
+                    y: e.clientY, 
+                    rect: floatWindow.getBoundingClientRect() 
+                };
+                e.preventDefault();
+            }
+            
+            function startWinDragTouch(e) {
+                if (!floatWindow.classList.contains('active')) return;
+                if (e.touches.length === 1) {
+                    winIsDragging = true;
+                    const touch = e.touches[0];
+                    winDragStart = { 
+                        x: touch.clientX, 
+                        y: touch.clientY, 
+                        rect: floatWindow.getBoundingClientRect() 
+                    };
+                }
+            }
+            
+            function doDrag(e) {
+                if (btnIsDragging) {
+                    const dx = e.clientX - btnDragStart.x;
+                    const dy = e.clientY - btnDragStart.y;
+                    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                        const newLeft = Math.max(20, Math.min(
+                            btnDragStart.rect.left + dx, 
+                            window.innerWidth - 80
+                        ));
+                        const newTop = Math.max(20, Math.min(
+                            btnDragStart.rect.top + dy, 
+                            window.innerHeight - 80
+                        ));
+                        floatBtn.style.left = `${newLeft}px`;
+                        floatBtn.style.top = `${newTop}px`;
+                    }
+                }
+                
+                if (winIsDragging) {
+                    const dx = e.clientX - winDragStart.x;
+                    const dy = e.clientY - winDragStart.y;
+                    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                        currentWindowPos = {
+                            left: Math.max(20, Math.min(
+                                winDragStart.rect.left + dx, 
+                                window.innerWidth - 300 - 20
+                            )),
+                            top: Math.max(20, Math.min(
+                                winDragStart.rect.top + dy, 
+                                window.innerHeight - 280 - 20
+                            ))
+                        };
+                        floatWindow.style.left = `${currentWindowPos.left}px`;
+                        floatWindow.style.top = `${currentWindowPos.top}px`;
+                    }
+                }
+            }
+            
+            function doDragTouch(e) {
+                if (e.touches.length !== 1) return;
+                const touch = e.touches[0];
+                
+                if (btnIsDragging) {
+                    const dx = touch.clientX - btnDragStart.x;
+                    const dy = touch.clientY - btnDragStart.y;
+                    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                        const newLeft = Math.max(20, Math.min(
+                            btnDragStart.rect.left + dx, 
+                            window.innerWidth - 80
+                        ));
+                        const newTop = Math.max(20, Math.min(
+                            btnDragStart.rect.top + dy, 
+                            window.innerHeight - 80
+                        ));
+                        floatBtn.style.left = `${newLeft}px`;
+                        floatBtn.style.top = `${newTop}px`;
+                    }
+                }
+                
+                if (winIsDragging) {
+                    const dx = touch.clientX - winDragStart.x;
+                    const dy = touch.clientY - winDragStart.y;
+                    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                        currentWindowPos = {
+                            left: Math.max(20, Math.min(
+                                winDragStart.rect.left + dx, 
+                                window.innerWidth - 300 - 20
+                            )),
+                            top: Math.max(20, Math.min(
+                                winDragStart.rect.top + dy, 
+                                window.innerHeight - 280 - 20
+                            ))
+                        };
+                        floatWindow.style.left = `${currentWindowPos.left}px`;
+                        floatWindow.style.top = `${currentWindowPos.top}px`;
+                    }
+                }
+            }
+            
+            function stopDrag() {
+                btnIsDragging = false;
+                winIsDragging = false;
+            }
+
+            // 8. 切换悬浮窗显示/隐藏
+            function toggleFloatWindow() {
+                const floatWindow = document.getElementById('floatWindow');
+                if (!floatWindow) {
+                    console.error('找不到悬浮窗元素！');
+                    return;
+                }
+                
+                if (floatWindow.classList.contains('active')) {
+                    // 隐藏悬浮窗
+                    floatWindow.classList.remove('active');
+                    floatWindow.style.display = 'none';
+                    
+                    // 同时隐藏所有面板和返回按钮
+                    document.querySelectorAll('.content-panel').forEach(panel => {
+                        panel.classList.remove('active');
+                        panel.style.display = 'none';
+                    });
+                    
+                    if (funcButtons) {
+                        funcButtons.style.display = 'flex';
+                    }
+                    
+                    if (modalBack) {
+                        modalBack.style.display = 'none';
+                    }
+                    
+                    console.log('隐藏悬浮窗');
+                } else {
+                    // 显示悬浮窗
+                    floatWindow.classList.add('active');
+                    floatWindow.style.display = 'block';
+                    floatWindow.style.opacity = '1';
+                    floatWindow.style.left = `${currentWindowPos.left}px`;
+                    floatWindow.style.top = `${currentWindowPos.top}px`;
+                    
+                    // 确保显示功能按钮列表
+                    if (funcButtons) {
+                        funcButtons.style.display = 'flex';
+                    }
+                    
+                    // 确保隐藏返回按钮
+                    if (modalBack) {
+                        modalBack.style.display = 'none';
+                    }
+                    
+                    console.log('显示悬浮窗');
+                }
+            }
+
+            // 9. 主登录处理
+            async function handleLoginMain() {
+                const username = document.getElementById('loginUsername').value.trim();
+                const password = document.getElementById('loginPassword').value.trim();
+                
+                if (!username || !password) {
+                    utils.showNotification('请输入用户名和密码', 'error');
+                    return;
+                }
+                
+                utils.showNotification('正在登录...', 'info');
+                
+                try {
+                    const response = await fetch(`${CONFIG.API_BASE_URL}/api/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, password, deviceId })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        // 保存登录信息
+                        localStorage.setItem(CONFIG.STORAGE_KEYS.USERNAME, username);
+                        localStorage.setItem(CONFIG.STORAGE_KEYS.DEVICE_TOKEN, result.token);
+                        localStorage.setItem(CONFIG.STORAGE_KEYS.USER_INFO, JSON.stringify(result.user));
+                        
+                        currentUser = result.user;
+                        deviceToken = result.token;
+                        
+                        showManualContent();
+                        utils.showNotification('登录成功！', 'success');
+                        updateConnectionStatus('connected');
+                        
+                        // 清空表单
+                        document.getElementById('loginUsername').value = '';
+                        document.getElementById('loginPassword').value = '';
+                        
+                        // 关闭登录界面
+                        loginContainer.style.display = 'none';
+                        
+                    } else {
+                        if (result.code === 'ALREADY_LOGGED_IN') {
+                            utils.showNotification('账号已在其他设备登录，无法重复登录', 'error');
+                        } else {
+                            utils.showNotification(result.error || '登录失败', 'error');
+                        }
+                    }
+                } catch (error) {
+                    utils.showNotification('网络错误，请检查连接', 'error');
+                }
+            }
+
+            // 10. 主注册处理
+            async function handleRegisterMain() {
+                const username = document.getElementById('registerUsername').value.trim();
+                const password = document.getElementById('registerPassword').value.trim();
+                const email = document.getElementById('registerEmail').value.trim();
+                
+                if (!username || !password) {
+                    utils.showNotification('请填写必填项', 'error');
+                    return;
+                }
+                
+                utils.showNotification('正在提交注册申请...', 'info');
+                
+                try {
+                    const response = await fetch(`${CONFIG.API_BASE_URL}/api/register`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, password, email })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        utils.showNotification('注册申请已提交！请等待管理员审核。', 'success');
+                        // 切换回登录表单
+                        document.getElementById('loginFormMain').style.display = 'block';
+                        document.getElementById('registerFormMain').style.display = 'none';
+                        document.getElementById('toggleText').textContent = '没有账号？';
+                        document.getElementById('toggleFormBtn').textContent = '立即注册';
+                        
+                        // 清空表单
+                        document.getElementById('registerUsername').value = '';
+                        document.getElementById('registerPassword').value = '';
+                        document.getElementById('registerEmail').value = '';
+                    } else {
+                        utils.showNotification(result.error || '注册失败', 'error');
+                    }
+                } catch (error) {
+                    utils.showNotification('网络错误，请检查连接', 'error');
+                }
+            }
+
+            // 11. 悬浮窗内登录处理
             async function handleLogin() {
                 const usernameInput = document.getElementById('login-username');
                 const passwordInput = document.getElementById('login-password');
@@ -738,8 +1213,8 @@
                     
                     const result = await response.json();
                     
-                    if (result.success && result.token && result.user) {
-                        // 登录成功
+                    if (result.success) {
+                        // 保存登录信息
                         localStorage.setItem(CONFIG.STORAGE_KEYS.USERNAME, username);
                         localStorage.setItem(CONFIG.STORAGE_KEYS.DEVICE_TOKEN, result.token);
                         localStorage.setItem(CONFIG.STORAGE_KEYS.USER_INFO, JSON.stringify(result.user));
@@ -772,7 +1247,7 @@
                 }
             }
 
-            // 7. 处理注册
+            // 12. 悬浮窗内注册处理
             async function handleRegister() {
                 const usernameInput = document.getElementById('register-username');
                 const emailInput = document.getElementById('register-email');
@@ -821,7 +1296,7 @@
                 }
             }
 
-            // 8. 检查会话状态
+            // 13. 检查会话状态
             async function checkSessionStatus() {
                 const username = localStorage.getItem(CONFIG.STORAGE_KEYS.USERNAME);
                 const token = localStorage.getItem(CONFIG.STORAGE_KEYS.DEVICE_TOKEN);
@@ -871,7 +1346,7 @@
                 }
             }
 
-            // 9. 强制退出
+            // 14. 强制退出
             function forceLogout(reason) {
                 utils.showNotification(`已退出登录: ${reason}`, 'error');
                 clearLoginData();
@@ -879,7 +1354,7 @@
                 updateConnectionStatus('disconnected');
             }
 
-            // 10. 退出登录
+            // 15. 退出登录
             async function logout() {
                 if (confirm('确定要退出登录吗？')) {
                     const username = localStorage.getItem(CONFIG.STORAGE_KEYS.USERNAME);
@@ -904,7 +1379,7 @@
                 }
             }
 
-            // 11. 清除登录数据
+            // 16. 清除登录数据
             function clearLoginData() {
                 localStorage.removeItem(CONFIG.STORAGE_KEYS.USERNAME);
                 localStorage.removeItem(CONFIG.STORAGE_KEYS.DEVICE_TOKEN);
@@ -916,18 +1391,15 @@
                 if (checkTimer) clearInterval(checkTimer);
             }
 
-            // 12. 显示登录表单
+            // 17. 显示登录表单
             function showLoginForm() {
-                const loginContainer = document.getElementById('loginContainer');
-                const manualContainer = document.getElementById('manualContainer');
-                const floatWindow = document.getElementById('floatWindow');
-                
                 if (loginContainer) loginContainer.style.display = 'block';
                 if (manualContainer) manualContainer.style.display = 'none';
                 if (floatWindow) floatWindow.style.display = 'none';
+                if (floatBtn) floatBtn.style.display = 'flex';
             }
 
-            // 13. 显示用户信息
+            // 18. 显示用户信息
             function showUserInfo() {
                 const userInfoEl = document.getElementById('user-info');
                 const loginForm = document.getElementById('login-form');
@@ -953,25 +1425,19 @@
                 if (userEmailEl && currentUser) {
                     userEmailEl.textContent = currentUser.email || '未填写邮箱';
                 }
-                
-                // 显示手册内容
-                showManualContent();
             }
 
-            // 14. 显示手册内容
+            // 19. 显示手册内容
             function showManualContent() {
-                const loginContainer = document.getElementById('loginContainer');
-                const manualContainer = document.getElementById('manualContainer');
-                const floatWindow = document.getElementById('floatWindow');
-                
                 if (loginContainer) loginContainer.style.display = 'none';
                 if (manualContainer) manualContainer.style.display = 'block';
-                if (floatWindow) floatWindow.style.display = 'block';
+                if (floatWindow) floatWindow.style.display = 'none';
+                if (floatBtn) floatBtn.style.display = 'flex';
                 
                 loadManualContent();
             }
 
-            // 15. 加载手册内容
+            // 20. 加载手册内容
             async function loadManualContent() {
                 try {
                     const response = await fetch(`${CONFIG.API_BASE_URL}/api/content`);
@@ -994,45 +1460,43 @@
                 }
             }
 
-            // 16. 渲染手册内容
+            // 21. 渲染手册内容
             function renderManualContent(data) {
                 const isAdmin = currentUser && currentUser.role === 'admin';
                 
                 const html = `
-                    <div style="padding: 20px; max-width: 1000px; margin: 0 auto;">
-                        <div style="background: #2c3e50; color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-                            <h1 style="margin-bottom: 10px;">${data.title || '松下 TM-1800 机器人编程手册'}</h1>
-                            <p style="opacity: 0.9;">${data.subtitle || '型号：YA-2JMR81F00 | 负载：6kg | 臂展：1809.5mm | 6轴'}</p>
-                            <p style="font-size: 12px; margin-top: 10px;">
-                                最后更新: ${data.lastModified ? new Date(data.lastModified).toLocaleString() : '未知'}
+                    <div style="background: #2c3e50; color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                        <h1 style="margin-bottom: 10px;">${data.title || '松下 TM-1800 机器人编程手册'}</h1>
+                        <p style="opacity: 0.9;">${data.subtitle || '型号：YA-2JMR81F00 | 负载：6kg | 臂展：1809.5mm | 6轴'}</p>
+                        <p style="font-size: 12px; margin-top: 10px;">
+                            最后更新: ${data.lastModified ? new Date(data.lastModified).toLocaleString() : '未知'}
+                        </p>
+                    </div>
+                    
+                    ${isAdmin ? 
+                        `<div style="background: #e8f4fd; padding: 15px; border-radius: 8px; border-left: 4px solid #3498db; margin-bottom: 20px;">
+                            <p style="margin: 0; display: flex; align-items: center; justify-content: space-between;">
+                                <span>👨‍💻 <strong>管理员模式</strong> - 您已登录，可编辑内容</span>
+                                <button onclick="enterEditMode()" style="padding: 8px 15px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                                    进入编辑模式
+                                </button>
                             </p>
-                        </div>
-                        
-                        ${isAdmin ? 
-                            `<div style="background: #e8f4fd; padding: 15px; border-radius: 8px; border-left: 4px solid #3498db; margin-bottom: 20px;">
-                                <p style="margin: 0; display: flex; align-items: center; justify-content: space-between;">
-                                    <span>👨‍💻 <strong>管理员模式</strong> - 您已登录，可编辑内容</span>
-                                    <button onclick="enterEditMode()" style="padding: 8px 15px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                                        进入编辑模式
-                                    </button>
-                                </p>
-                            </div>` 
-                            : 
-                            `<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
-                                <p>👀 <strong>游客模式</strong> - 仅可查看内容。登录管理员账号后可编辑。</p>
-                            </div>`
-                        }
-                        
-                        <div id="manualSections">
-                            ${data.content || '<p>这里是手册的具体内容区域...</p>'}
-                        </div>
+                        </div>` 
+                        : 
+                        `<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
+                            <p>👀 <strong>游客模式</strong> - 仅可查看内容。登录管理员账号后可编辑。</p>
+                        </div>`
+                    }
+                    
+                    <div id="manualSections">
+                        ${data.content || '<p>这里是手册的具体内容区域...</p>'}
                     </div>
                 `;
                 
-                dynamicContent.innerHTML = html;
+                document.getElementById('manualContent').innerHTML = html;
             }
 
-            // 17. 启动心跳
+            // 22. 启动心跳
             function startHeartbeat() {
                 if (heartbeatTimer) clearInterval(heartbeatTimer);
                 
@@ -1054,7 +1518,7 @@
                 }, CONFIG.HEARTBEAT_INTERVAL);
             }
 
-            // 18. 启动会话检查
+            // 23. 启动会话检查
             function startSessionChecker() {
                 if (checkTimer) clearInterval(checkTimer);
                 
@@ -1063,7 +1527,7 @@
                 }, CONFIG.CHECK_INTERVAL);
             }
 
-            // 19. 认证相关函数
+            // 24. 认证相关函数
             function switchAuthTab(tabName) {
                 document.querySelectorAll('.auth-tab').forEach(tab => tab.classList.remove('active'));
                 const targetTab = document.querySelector(`.auth-tab[data-tab="${tabName}"]`);
@@ -1127,7 +1591,7 @@
                 }
             }
 
-            // 20. 初始化设置面板
+            // 25. 初始化设置面板
             function initSettingPanel() {
                 if (!panelSetting) return;
                 
@@ -1148,9 +1612,6 @@
                         </p>
                         <p style="margin-bottom: 8px; font-size: 13px; color: #4a5568;">
                             <strong>状态:</strong> <span id="current-user-status">未登录</span>
-                        </p>
-                        <p style="margin-bottom: 8px; font-size: 13px; color: #4a5568;">
-                            <strong>自动刷新:</strong> 5分钟
                         </p>
                         <p style="margin-bottom: 8px; font-size: 13px; color: #4a5568;">
                             <strong>设备ID:</strong> <span id="current-device-id">${deviceId || '未知'}</span>
@@ -1186,7 +1647,7 @@
                 updateSettingPanelStatus();
             }
 
-            // 21. 更新设置面板状态
+            // 26. 更新设置面板状态
             function updateSettingPanelStatus() {
                 const currentUserStatus = document.getElementById('current-user-status');
                 const logoutBtnSetting = document.getElementById('logout-btn-setting');
@@ -1213,7 +1674,7 @@
                 }
             }
 
-            // 22. 全局函数
+            // 27. 全局函数
             window.refreshContent = function() {
                 loadManualContent();
                 utils.showNotification('正在刷新内容...', 'info');
