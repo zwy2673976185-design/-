@@ -1,7 +1,7 @@
 {
-  "name": "robot-manual-login-system",
+  "name": "robot-manual-mutex-login",
   "version": "1.0.0",
-  "description": "松下机器人手册登录系统（白名单版）",
+  "description": "松下机器人手册多端互斥登录系统",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
