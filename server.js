@@ -2,282 +2,472 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs').promises;
 const path = require('path');
-const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 配置文件路径
+// 配置路径
 const DATA_DIR = path.join(__dirname, 'server-data');
 const DATA_FILE = path.join(DATA_DIR, 'manual_data.json');
 const WHITELIST_FILE = path.join(__dirname, 'whitelist.json');
+const SESSIONS_DIR = path.join(__dirname, 'sessions');
 
-// 配置信息 - 请修改密码！
+// 配置
 const CONFIG = {
-  ADMIN_PASSWORD: 'admin123', // 您自己用的管理员密码，请务必修改！
-  SALT_ROUNDS: 10
+  ADMIN_PASSWORD: 'admin123',
+  SESSION_TIMEOUT: 7 * 24 * 60 * 60 * 1000, // 7天
+  HEARTBEAT_INTERVAL: 5 * 60 * 1000, // 5分钟心跳
 };
 
 // 中间件
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public')); // 静态文件目录
+app.use(express.static('public'));
 
-// 初始化数据目录
-async function initDataDirectory() {
+// 初始化
+async function init() {
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  await fs.mkdir(SESSIONS_DIR, { recursive: true });
+  
+  // 初始化数据文件
+  try { await fs.access(DATA_FILE); } catch {
+    await fs.writeFile(DATA_FILE, JSON.stringify({
+      title: '松下 TM-1800 机器人编程手册',
+      subtitle: '型号：YA-2JMR81F00 | 负载：6kg | 臂展：1809.5mm | 6轴',
+      content: '这里是手册内容...',
+      lastModified: new Date().toISOString(),
+    }, null, 2));
+  }
+  
+  // 初始化白名单
+  try { await fs.access(WHITELIST_FILE); } catch {
+    const hashedPassword = crypto.createHash('sha256').update(CONFIG.ADMIN_PASSWORD).digest('hex');
+    await fs.writeFile(WHITELIST_FILE, JSON.stringify({
+      users: [{
+        username: 'admin',
+        passwordHash: hashedPassword,
+        email: '',
+        role: 'admin',
+        status: 'approved',
+        createdAt: new Date().toISOString(),
+      }],
+    }, null, 2));
+  }
+  
+  console.log('✅ 系统初始化完成');
+}
+
+// 工具函数
+function hashPassword(password) {
+  return crypto.createHash('sha256').update(password).digest('hex');
+}
+
+async function getUser(username) {
+  const whitelist = JSON.parse(await fs.readFile(WHITELIST_FILE, 'utf8'));
+  return whitelist.users.find(u => u.username === username);
+}
+
+async function saveUser(user) {
+  const whitelist = JSON.parse(await fs.readFile(WHITELIST_FILE, 'utf8'));
+  const index = whitelist.users.findIndex(u => u.username === user.username);
+  if (index >= 0) whitelist.users[index] = user;
+  else whitelist.users.push(user);
+  await fs.writeFile(WHITELIST_FILE, JSON.stringify(whitelist, null, 2));
+}
+
+async function deleteUser(username) {
+  const whitelist = JSON.parse(await fs.readFile(WHITELIST_FILE, 'utf8'));
+  whitelist.users = whitelist.users.filter(u => u.username !== username);
+  await fs.writeFile(WHITELIST_FILE, JSON.stringify(whitelist, null, 2));
+  
+  // 删除会话文件
   try {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    
-    // 初始化手册数据文件
-    try {
-      await fs.access(DATA_FILE);
-    } catch {
-      await fs.writeFile(DATA_FILE, JSON.stringify({
-        title: '松下 TM-1800 机器人编程手册',
-        subtitle: '型号：YA-2JMR81F00 | 负载：6kg | 臂展：1809.5mm | 6轴',
-        sections: {},
-        videos: [],
-        lastModified: new Date().toISOString(),
-        modifiedBy: '系统初始化'
-      }, null, 2));
-    }
-    
-    // 初始化白名单文件
-    try {
-      await fs.access(WHITELIST_FILE);
-    } catch {
-      const hashedPassword = await bcrypt.hash(CONFIG.ADMIN_PASSWORD, CONFIG.SALT_ROUNDS);
-      const initialWhitelist = {
-        users: [
-          {
-            username: 'admin',
-            passwordHash: hashedPassword,
-            email: '',
-            status: 'approved',
-            role: 'admin',
-            createdAt: new Date().toISOString(),
-            approvedBy: 'system',
-            approvedAt: new Date().toISOString()
-          }
-        ],
-        pendingApprovals: [],
-        statistics: {
-          totalUsers: 1,
-          approvedUsers: 1,
-          pendingUsers: 0
-        }
-      };
-      await fs.writeFile(WHITELIST_FILE, JSON.stringify(initialWhitelist, null, 2));
-    }
-    
-    console.log('✅ 数据目录初始化完成');
-  } catch (error) {
-    console.error('❌ 初始化失败:', error);
+    await fs.unlink(path.join(SESSIONS_DIR, `${username}.json`));
+  } catch {}
+}
+
+async function getSession(username) {
+  try {
+    const sessionFile = path.join(SESSIONS_DIR, `${username}.json`);
+    const data = await fs.readFile(sessionFile, 'utf8');
+    return JSON.parse(data);
+  } catch {
+    return null;
   }
 }
 
-// ================== API 接口 ==================
+async function saveSession(username, session) {
+  const sessionFile = path.join(SESSIONS_DIR, `${username}.json`);
+  await fs.writeFile(sessionFile, JSON.stringify(session, null, 2));
+}
 
-// 1. 用户注册
-app.post('/api/register', async (req, res) => {
+async function deleteSession(username) {
   try {
-    const { username, password, email } = req.body;
-    if (!username || !password) {
-      return res.status(400).json({ success: false, error: '用户名和密码不能为空' });
-    }
-    
-    const whitelistData = JSON.parse(await fs.readFile(WHITELIST_FILE, 'utf8'));
-    const existingUser = whitelistData.users.find(u => u.username === username);
-    const existingPending = whitelistData.pendingApprovals.find(u => u.username === username);
-    
-    if (existingUser || existingPending) {
-      return res.status(400).json({ success: false, error: '用户名已存在' });
-    }
-    
-    const passwordHash = await bcrypt.hash(password, CONFIG.SALT_ROUNDS);
-    const newPendingUser = {
-      username,
-      passwordHash,
-      email: email || '',
-      status: 'pending',
-      role: 'user',
-      createdAt: new Date().toISOString(),
-      registerInfo: {
-        ip: req.ip,
-        userAgent: req.headers['user-agent'],
-        timestamp: new Date().toISOString()
-      }
-    };
-    
-    whitelistData.pendingApprovals.push(newPendingUser);
-    whitelistData.statistics.pendingUsers = whitelistData.pendingApprovals.length;
-    await fs.writeFile(WHITELIST_FILE, JSON.stringify(whitelistData, null, 2));
-    
-    // 在控制台打印注册信息（方便您复制到白名单）
-    console.log('\n' + '='.repeat(60));
-    console.log('📝 新用户注册申请:');
-    console.log(`用户名: ${username}`);
-    console.log(`邮箱: ${email || '无'}`);
-    console.log(`时间: ${new Date().toLocaleString()}`);
-    console.log(`IP: ${req.ip}`);
-    console.log('='.repeat(60));
-    console.log('💡 请将以上信息添加到 whitelist.json 的 users 数组中');
-    console.log('='.repeat(60) + '\n');
-    
-    res.json({
-      success: true,
-      message: '注册成功！请等待管理员审核。',
-      username,
-      status: 'pending'
-    });
-    
-  } catch (error) {
-    console.error('注册失败:', error);
-    res.status(500).json({ success: false, error: '注册失败' });
-  }
-});
+    await fs.unlink(path.join(SESSIONS_DIR, `${username}.json`));
+  } catch {}
+}
 
-// 2. 用户登录
+// 生成设备令牌
+function generateDeviceToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+// 验证会话
+async function verifySession(username, deviceToken) {
+  const session = await getSession(username);
+  if (!session) return false;
+  
+  // 检查会话是否过期
+  if (Date.now() - session.lastActive > CONFIG.SESSION_TIMEOUT) {
+    await deleteSession(username);
+    return false;
+  }
+  
+  // 检查设备令牌是否匹配
+  if (session.deviceToken !== deviceToken) {
+    return false;
+  }
+  
+  // 更新最后活动时间
+  session.lastActive = Date.now();
+  await saveSession(username, session);
+  
+  return true;
+}
+
+// API接口
 app.post('/api/login', async (req, res) => {
   try {
-    const { username, password } = req.body;
-    if (!username || !password) {
-      return res.status(400).json({ success: false, error: '用户名和密码不能为空' });
+    const { username, password, deviceId } = req.body;
+    
+    if (!username || !password || !deviceId) {
+      return res.json({ success: false, error: '缺少参数' });
     }
     
-    const whitelistData = JSON.parse(await fs.readFile(WHITELIST_FILE, 'utf8'));
-    const user = whitelistData.users.find(u => u.username === username);
-    
-    if (!user) {
-      return res.status(401).json({ success: false, error: '用户不存在或未通过审核' });
+    // 检查用户是否存在
+    const user = await getUser(username);
+    if (!user || user.status !== 'approved') {
+      return res.json({ success: false, error: '用户不存在或未批准' });
     }
     
-    if (user.status !== 'approved') {
-      return res.status(401).json({ success: false, error: '账号未通过审核，请联系管理员' });
+    // 验证密码
+    if (user.passwordHash !== hashPassword(password)) {
+      return res.json({ success: false, error: '密码错误' });
     }
     
-    const passwordMatch = await bcrypt.compare(password, user.passwordHash);
-    if (!passwordMatch) {
-      return res.status(401).json({ success: false, error: '密码错误' });
+    // 检查是否已在其他设备登录
+    const existingSession = await getSession(username);
+    if (existingSession) {
+      // 如果已经在其他设备登录，拒绝新登录
+      return res.json({ 
+        success: false, 
+        error: '账号已在其他设备登录',
+        code: 'ALREADY_LOGGED_IN'
+      });
     }
     
-    // 生成登录令牌（简化版）
-    const token = {
-      username: user.username,
-      role: user.role,
-      loginTime: new Date().toISOString(),
-      expiresIn: 24 * 60 * 60 * 1000 // 24小时
+    // 创建新会话
+    const deviceToken = generateDeviceToken();
+    const session = {
+      username,
+      deviceToken,
+      deviceId,
+      loginTime: Date.now(),
+      lastActive: Date.now(),
+      ip: req.ip,
     };
     
-    user.lastLogin = new Date().toISOString();
-    await fs.writeFile(WHITELIST_FILE, JSON.stringify(whitelistData, null, 2));
-    
-    console.log(`✅ 用户登录: ${username} (${user.role})`);
+    await saveSession(username, session);
     
     res.json({
       success: true,
       message: '登录成功',
-      token: Buffer.from(JSON.stringify(token)).toString('base64'),
+      token: deviceToken,
       user: {
         username: user.username,
         role: user.role,
-        email: user.email
+        email: user.email,
       }
     });
     
   } catch (error) {
-    console.error('登录失败:', error);
-    res.status(500).json({ success: false, error: '登录失败' });
+    console.error('登录错误:', error);
+    res.json({ success: false, error: '登录失败' });
   }
 });
 
-// 3. 获取手册内容（需要登录）
+app.post('/api/logout', async (req, res) => {
+  try {
+    const { username, token } = req.body;
+    
+    if (!username || !token) {
+      return res.json({ success: false, error: '缺少参数' });
+    }
+    
+    // 验证令牌
+    const valid = await verifySession(username, token);
+    if (!valid) {
+      return res.json({ success: false, error: '无效的会话' });
+    }
+    
+    // 删除会话
+    await deleteSession(username);
+    
+    res.json({ success: true, message: '已退出登录' });
+    
+  } catch (error) {
+    res.json({ success: false, error: '退出失败' });
+  }
+});
+
+app.post('/api/check-session', async (req, res) => {
+  try {
+    const { username, token } = req.body;
+    
+    if (!username || !token) {
+      return res.json({ success: false, valid: false });
+    }
+    
+    // 检查用户是否在白名单
+    const user = await getUser(username);
+    if (!user || user.status !== 'approved') {
+      await deleteSession(username);
+      return res.json({ 
+        success: false, 
+        valid: false, 
+        error: '用户不在白名单中' 
+      });
+    }
+    
+    // 验证会话
+    const valid = await verifySession(username, token);
+    
+    if (valid) {
+      res.json({ 
+        success: true, 
+        valid: true,
+        user: {
+          username: user.username,
+          role: user.role,
+          email: user.email,
+        }
+      });
+    } else {
+      res.json({ success: true, valid: false });
+    }
+    
+  } catch (error) {
+    res.json({ success: false, valid: false });
+  }
+});
+
 app.get('/api/content', async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ success: false, error: '未授权，请先登录' });
-    }
-    
-    // 简化验证（实际应用应更严格）
-    const data = await fs.readFile(DATA_FILE, 'utf8');
-    res.json({
-      success: true,
-      data: JSON.parse(data),
-      timestamp: new Date().toISOString()
-    });
-    
+    const data = JSON.parse(await fs.readFile(DATA_FILE, 'utf8'));
+    res.json({ success: true, data });
   } catch (error) {
-    console.error('读取内容失败:', error);
-    res.status(500).json({ success: false, error: '读取内容失败' });
+    res.json({ success: false, error: '获取内容失败' });
   }
 });
 
-// 4. 保存手册内容（需要管理员权限）
 app.post('/api/content', async (req, res) => {
   try {
-    const { password, content } = req.body;
+    const { username, token, content } = req.body;
     
-    if (password !== CONFIG.ADMIN_PASSWORD) {
-      return res.status(403).json({ success: false, error: '管理员密码错误' });
+    if (!username || !token) {
+      return res.json({ success: false, error: '未授权' });
     }
     
-    if (!content) {
-      return res.status(400).json({ success: false, error: '内容不能为空' });
+    // 验证会话
+    const valid = await verifySession(username, token);
+    if (!valid) {
+      return res.json({ success: false, error: '会话无效或已过期' });
     }
     
-    const enhancedContent = {
+    // 检查用户权限
+    const user = await getUser(username);
+    if (user.role !== 'admin') {
+      return res.json({ success: false, error: '无权限' });
+    }
+    
+    // 保存内容
+    const newData = {
       ...content,
       lastModified: new Date().toISOString(),
-      modifiedBy: '管理员'
+      modifiedBy: username,
     };
     
-    await fs.writeFile(DATA_FILE, JSON.stringify(enhancedContent, null, 2), 'utf8');
-    console.log(`📝 手册内容已更新`);
+    await fs.writeFile(DATA_FILE, JSON.stringify(newData, null, 2));
     
-    res.json({
-      success: true,
-      message: '内容已成功保存到服务器',
-      lastModified: enhancedContent.lastModified
+    res.json({ 
+      success: true, 
+      message: '内容已保存',
+      lastModified: newData.lastModified,
     });
     
   } catch (error) {
-    console.error('保存失败:', error);
-    res.status(500).json({ success: false, error: '保存失败' });
+    res.json({ success: false, error: '保存失败' });
   }
 });
 
-// 5. 主页面路由（提供前端）
-app.get('/', (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>松下机器人手册</title>
-      <meta http-equiv="refresh" content="0; url=/enhanced_manual.html">
-    </head>
-    <body>
-      <p>正在跳转到手册页面...</p>
-    </body>
-    </html>
-  `);
+app.post('/api/register', async (req, res) => {
+  try {
+    const { username, password, email } = req.body;
+    
+    if (!username || !password) {
+      return res.json({ success: false, error: '用户名和密码不能为空' });
+    }
+    
+    // 检查是否已存在
+    const existing = await getUser(username);
+    if (existing) {
+      return res.json({ success: false, error: '用户名已存在' });
+    }
+    
+    // 创建用户（待审核状态）
+    const newUser = {
+      username,
+      passwordHash: hashPassword(password),
+      email: email || '',
+      role: 'user',
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    };
+    
+    await saveUser(newUser);
+    
+    console.log(`📝 新用户注册: ${username} (${email || '无邮箱'})`);
+    
+    res.json({ 
+      success: true, 
+      message: '注册成功，请等待管理员审核',
+      username,
+    });
+    
+  } catch (error) {
+    res.json({ success: false, error: '注册失败' });
+  }
+});
+
+// 管理员接口
+app.post('/api/admin/users', async (req, res) => {
+  try {
+    const { adminPassword } = req.body;
+    
+    if (adminPassword !== CONFIG.ADMIN_PASSWORD) {
+      return res.json({ success: false, error: '管理员密码错误' });
+    }
+    
+    const whitelist = JSON.parse(await fs.readFile(WHITELIST_FILE, 'utf8'));
+    
+    res.json({ 
+      success: true, 
+      users: whitelist.users,
+    });
+    
+  } catch (error) {
+    res.json({ success: false, error: '获取用户列表失败' });
+  }
+});
+
+app.post('/api/admin/approve', async (req, res) => {
+  try {
+    const { adminPassword, username } = req.body;
+    
+    if (adminPassword !== CONFIG.ADMIN_PASSWORD) {
+      return res.json({ success: false, error: '管理员密码错误' });
+    }
+    
+    const user = await getUser(username);
+    if (!user) {
+      return res.json({ success: false, error: '用户不存在' });
+    }
+    
+    user.status = 'approved';
+    await saveUser(user);
+    
+    res.json({ 
+      success: true, 
+      message: '用户已批准',
+      user: {
+        username: user.username,
+        email: user.email,
+      }
+    });
+    
+  } catch (error) {
+    res.json({ success: false, error: '批准失败' });
+  }
+});
+
+app.post('/api/admin/delete', async (req, res) => {
+  try {
+    const { adminPassword, username } = req.body;
+    
+    if (adminPassword !== CONFIG.ADMIN_PASSWORD) {
+      return res.json({ success: false, error: '管理员密码错误' });
+    }
+    
+    await deleteUser(username);
+    
+    res.json({ 
+      success: true, 
+      message: '用户已删除',
+    });
+    
+  } catch (error) {
+    res.json({ success: false, error: '删除失败' });
+  }
+});
+
+// 心跳接口
+app.post('/api/heartbeat', async (req, res) => {
+  try {
+    const { username, token } = req.body;
+    
+    if (!username || !token) {
+      return res.json({ success: false });
+    }
+    
+    // 验证会话
+    const valid = await verifySession(username, token);
+    
+    if (valid) {
+      res.json({ success: true, valid: true });
+    } else {
+      res.json({ success: true, valid: false });
+    }
+    
+  } catch (error) {
+    res.json({ success: false });
+  }
+});
+
+// 服务器状态
+app.get('/api/status', (req, res) => {
+  res.json({
+    success: true,
+    status: 'online',
+    service: '多端互斥登录系统',
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // 启动服务器
 async function startServer() {
-  await initDataDirectory();
+  await init();
   
   app.listen(PORT, () => {
     console.log(`
-🚀 服务器已启动！
+🚀 多端互斥登录系统已启动
 📍 地址: http://localhost:${PORT}
-📡 主要API:
-  - POST /api/register   用户注册
-  - POST /api/login      用户登录
-  - GET  /api/content    获取内容
-  - POST /api/content    保存内容
 ⏰ 时间: ${new Date().toLocaleString()}
-💡 默认管理员账号: admin / admin123
+📡 功能:
+  - 单设备登录限制
+  - 白名单控制
+  - 会话持久化
+  - 实时状态检查
     `);
   });
 }
