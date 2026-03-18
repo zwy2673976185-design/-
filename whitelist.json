@@ -2,34 +2,11 @@
   "users": [
     {
       "username": "admin",
-      "passwordHash": "$2a$10$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-      "email": "admin@example.com",
-      "status": "approved",
+      "passwordHash": "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9",
+      "email": "",
       "role": "admin",
-      "createdAt": "2026-03-18T00:00:00.000Z",
-      "approvedBy": "system",
-      "approvedAt": "2026-03-18T00:00:00.000Z",
-      "lastLogin": "2026-03-18T12:30:45.123Z"
+      "status": "approved",
+      "createdAt": "2026-03-20T10:00:00.000Z"
     }
-  ],
-  "pendingApprovals": [
-    {
-      "username": "user1",
-      "passwordHash": "$2a$10$yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
-      "email": "user1@example.com",
-      "status": "pending",
-      "role": "user",
-      "createdAt": "2026-03-18T10:15:30.000Z",
-      "registerInfo": {
-        "ip": "123.123.123.123",
-        "userAgent": "Mozilla/5.0 ...",
-        "timestamp": "2026-03-18T10:15:30.000Z"
-      }
-    }
-  ],
-  "statistics": {
-    "totalUsers": 1,
-    "approvedUsers": 1,
-    "pendingUsers": 1
-  }
+  ]
 }
