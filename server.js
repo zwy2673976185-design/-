@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs').promises;
 const path = require('path');
+const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
 const app = express();
@@ -17,7 +18,6 @@ const SESSIONS_DIR = path.join(__dirname, 'sessions');
 const CONFIG = {
   ADMIN_PASSWORD: 'admin123',
   SESSION_TIMEOUT: 7 * 24 * 60 * 60 * 1000, // 7天
-  HEARTBEAT_INTERVAL: 5 * 60 * 1000, // 5分钟心跳
 };
 
 // 中间件
@@ -31,7 +31,9 @@ async function init() {
   await fs.mkdir(SESSIONS_DIR, { recursive: true });
   
   // 初始化数据文件
-  try { await fs.access(DATA_FILE); } catch {
+  try { 
+    await fs.access(DATA_FILE); 
+  } catch {
     await fs.writeFile(DATA_FILE, JSON.stringify({
       title: '松下 TM-1800 机器人编程手册',
       subtitle: '型号：YA-2JMR81F00 | 负载：6kg | 臂展：1809.5mm | 6轴',
@@ -41,7 +43,9 @@ async function init() {
   }
   
   // 初始化白名单
-  try { await fs.access(WHITELIST_FILE); } catch {
+  try { 
+    await fs.access(WHITELIST_FILE); 
+  } catch {
     const hashedPassword = crypto.createHash('sha256').update(CONFIG.ADMIN_PASSWORD).digest('hex');
     await fs.writeFile(WHITELIST_FILE, JSON.stringify({
       users: [{
@@ -136,7 +140,9 @@ async function verifySession(username, deviceToken) {
   return true;
 }
 
-// API接口
+// ========== API接口 ==========
+
+// 1. 用户登录（多端互斥）
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password, deviceId } = req.body;
@@ -159,7 +165,6 @@ app.post('/api/login', async (req, res) => {
     // 检查是否已在其他设备登录
     const existingSession = await getSession(username);
     if (existingSession) {
-      // 如果已经在其他设备登录，拒绝新登录
       return res.json({ 
         success: false, 
         error: '账号已在其他设备登录',
@@ -197,6 +202,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+// 2. 用户退出
 app.post('/api/logout', async (req, res) => {
   try {
     const { username, token } = req.body;
@@ -221,6 +227,7 @@ app.post('/api/logout', async (req, res) => {
   }
 });
 
+// 3. 检查会话状态
 app.post('/api/check-session', async (req, res) => {
   try {
     const { username, token } = req.body;
@@ -262,6 +269,7 @@ app.post('/api/check-session', async (req, res) => {
   }
 });
 
+// 4. 获取手册内容
 app.get('/api/content', async (req, res) => {
   try {
     const data = JSON.parse(await fs.readFile(DATA_FILE, 'utf8'));
@@ -271,6 +279,7 @@ app.get('/api/content', async (req, res) => {
   }
 });
 
+// 5. 保存手册内容（需要管理员权限）
 app.post('/api/content', async (req, res) => {
   try {
     const { username, token, content } = req.body;
@@ -311,6 +320,7 @@ app.post('/api/content', async (req, res) => {
   }
 });
 
+// 6. 用户注册
 app.post('/api/register', async (req, res) => {
   try {
     const { username, password, email } = req.body;
@@ -350,78 +360,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// 管理员接口
-app.post('/api/admin/users', async (req, res) => {
-  try {
-    const { adminPassword } = req.body;
-    
-    if (adminPassword !== CONFIG.ADMIN_PASSWORD) {
-      return res.json({ success: false, error: '管理员密码错误' });
-    }
-    
-    const whitelist = JSON.parse(await fs.readFile(WHITELIST_FILE, 'utf8'));
-    
-    res.json({ 
-      success: true, 
-      users: whitelist.users,
-    });
-    
-  } catch (error) {
-    res.json({ success: false, error: '获取用户列表失败' });
-  }
-});
-
-app.post('/api/admin/approve', async (req, res) => {
-  try {
-    const { adminPassword, username } = req.body;
-    
-    if (adminPassword !== CONFIG.ADMIN_PASSWORD) {
-      return res.json({ success: false, error: '管理员密码错误' });
-    }
-    
-    const user = await getUser(username);
-    if (!user) {
-      return res.json({ success: false, error: '用户不存在' });
-    }
-    
-    user.status = 'approved';
-    await saveUser(user);
-    
-    res.json({ 
-      success: true, 
-      message: '用户已批准',
-      user: {
-        username: user.username,
-        email: user.email,
-      }
-    });
-    
-  } catch (error) {
-    res.json({ success: false, error: '批准失败' });
-  }
-});
-
-app.post('/api/admin/delete', async (req, res) => {
-  try {
-    const { adminPassword, username } = req.body;
-    
-    if (adminPassword !== CONFIG.ADMIN_PASSWORD) {
-      return res.json({ success: false, error: '管理员密码错误' });
-    }
-    
-    await deleteUser(username);
-    
-    res.json({ 
-      success: true, 
-      message: '用户已删除',
-    });
-    
-  } catch (error) {
-    res.json({ success: false, error: '删除失败' });
-  }
-});
-
-// 心跳接口
+// 7. 心跳接口
 app.post('/api/heartbeat', async (req, res) => {
   try {
     const { username, token } = req.body;
@@ -444,7 +383,7 @@ app.post('/api/heartbeat', async (req, res) => {
   }
 });
 
-// 服务器状态
+// 8. 服务器状态
 app.get('/api/status', (req, res) => {
   res.json({
     success: true,
@@ -463,7 +402,7 @@ async function startServer() {
 🚀 多端互斥登录系统已启动
 📍 地址: http://localhost:${PORT}
 ⏰ 时间: ${new Date().toLocaleString()}
-📡 功能:
+📡 核心功能:
   - 单设备登录限制
   - 白名单控制
   - 会话持久化
