@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>松下机器人手册 - 登录系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Microsoft YaHei", sans-serif; }
+        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+        
+        /* 登录容器 */
+        .login-container {
+            max-width: 400px;
+            margin: 50px auto;
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .login-header h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        .form-group input:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+        
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .login-footer {
+            text-align: center;
+            margin-top: 25px;
+            color: #666;
+        }
+        .toggle-form {
+            color: #667eea;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        /* 悬浮窗 */
+        .floating-window {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.15);
+            z-index: 9999;
+            display: none;
+            min-width: 200px;
+        }
+        .floating-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 15px;
+            cursor: move;
+            font-weight: 600;
+        }
+        .floating-content ul {
+            list-style: none;
+            padding: 15px;
+        }
+        .floating-content li {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .floating-content li:hover {
+            background: #f8f9ff;
+        }
+        
+        /* 手册内容 */
+        .manual-container {
+            display: none;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+        }
+        
+        .user-info-bar {
+            background: #f8f9ff;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+            z-index: 10000;
+            display: none;
+        }
+        .notification.show {
+            transform: translateX(-50%) translateY(0);
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <!-- 登录界面 -->
+    <div id="loginContainer" class="login-container">
+        <div class="login-header">
+            <h1>🤖 松下机器人手册</h1>
+            <p>白名单登录系统 - 只有授权用户可访问</p>
+        </div>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" id="loginUsername" placeholder="请输入用户名" required>
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="loginPassword" placeholder="请输入密码" required>
+            </div>
+            <button type="submit" class="login-btn">登录</button>
+        </form>
+        
+        <form id="registerForm" style="display: none;">
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" id="registerUsername" placeholder="设置用户名" required>
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="registerPassword" placeholder="设置密码" required>
+            </div>
+            <div class="form-group">
+                <label>邮箱（可选）</label>
+                <input type="email" id="registerEmail" placeholder="用于接收通知">
+            </div>
+            <button type="submit" class="login-btn" style="background: #4CAF50;">提交注册申请</button>
+        </form>
+        
+        <div class="login-footer">
+            <span id="toggleText">没有账号？</span>
+            <span class="toggle-form" id="toggleFormBtn">立即注册</span>
+        </div>
+    </div>
+    
+    <!-- 手册内容（登录后显示） -->
+    <div id="manualContainer" class="manual-container">
+        <div class="user-info-bar">
+            <div>
+                <div style="font-weight: bold;" id="displayUsername">用户名</div>
+                <div style="font-size: 12px; color: #666;" id="userRole">角色</div>
+            </div>
+            <button id="logoutBtn" style="padding: 8px 15px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                退出登录
+            </button>
+        </div>
+        
+        <div id="manualContent">
+            <h2>欢迎使用松下机器人手册！</h2>
+            <p>请使用左侧悬浮窗进行操作。</p>
+        </div>
+    </div>
+    
+    <!-- 悬浮窗 -->
+    <div id="floatingWindow" class="floating-window">
+        <div class="floating-header">📱 功能面板</div>
+        <div class="floating-content">
+            <ul>
+                <li onclick="refreshContent()">🔄 刷新内容</li>
+                <li onclick="showUserInfo()">👤 我的信息</li>
+                <li onclick="contactAdmin()">📞 联系管理员</li>
+                <li onclick="logout()">🚪 退出登录</li>
+            </ul>
+        </div>
+    </div>
+    
+    <!-- 通知 -->
+    <div id="notification" class="notification"></div>
+
+    <script>
+        // 配置
+        const CONFIG = {
+            API_BASE_URL: 'https://bian-cheng-gong-ju-xiang.onrender.com',
+            STORAGE_KEYS: {
+                TOKEN: 'robot_manual_token',
+                USER_INFO: 'robot_manual_user'
+            }
+        };
+        
+        let currentUser = null;
+  
