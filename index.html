@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>编程工具箱</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #f3f4f6;
+      font-family: Arial, sans-serif;
+      padding: 15px;
+    }
+
+    .title {
+      text-align: center;
+      padding: 15px 0;
+      font-size: 22px;
+      font-weight: bold;
+      color: #222;
+    }
+
+    .item {
+      background: white;
+      margin-bottom: 12px;
+      padding: 18px;
+      border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .item h3 {
+      font-size: 18px;
+      margin-bottom: 6px;
+      color: #111;
+    }
+
+    .item p {
+      font-size: 15px;
+      color: #555;
+      line-height: 1.4;
+      margin-bottom: 10px;
+    }
+
+    video {
+      width: 100%;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="title">编程工具箱</div>
+  <div id="list"></div>
+
+  <script>
+    // 1 秒加载一次，实现实时更新
+    function loadData() {
+      fetch("/api/tools")
+        .then(res => res.json())
+        .then(data => {
+          let html = "";
+          data.forEach(item => {
+            html += `
+              <div class="item">
+                <h3>${item.title}</h3>
+                <p>${item.content}</p>
+                ${item.videoUrl ? `<video src="${item.videoUrl}" controls></video>` : ""}
+              </div>
+            `;
+          });
+          document.getElementById("list").innerHTML = html;
+        });
+    }
+
+    // 立即执行 + 每 1 秒刷新一次
+    loadData();
+    setInterval(loadData, 1000);
+  </script>
+
+</body>
+</html>
